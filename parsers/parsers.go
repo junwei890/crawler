@@ -3,6 +3,7 @@ package parsers
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,7 +21,7 @@ import (
 func Normalize(rawURL string) (string, error) {
 	structure, err := url.Parse(rawURL)
 	if err != nil {
-		return "", fmt.Errorf("normalize: error parsing %s, %v", rawURL, err)
+		return "", fmt.Errorf("can't parse %s", rawURL)
 	}
 
 	return structure.Host + strings.TrimRight(structure.Path, "/"), nil
@@ -31,25 +32,25 @@ func GetHTML(rawURL string) ([]byte, error) {
 
 	res, err := client.Get(rawURL)
 	if err != nil {
-		return []byte{}, fmt.Errorf("gethtml: error from get request to %s, %v", rawURL, err)
+		return []byte{}, fmt.Errorf("couldn't make get request to %s", rawURL)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode >= 400 && res.StatusCode < 500 {
-		return []byte{}, fmt.Errorf("gethtml: %d status code returned from %s", res.StatusCode, rawURL)
+		return []byte{}, fmt.Errorf("%d status code returned from %s", res.StatusCode, rawURL)
 	}
 
 	mediaType, _, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
 	if err != nil {
-		return []byte{}, fmt.Errorf("gethtml: error parsing content type for %s, %v", rawURL, err)
+		return []byte{}, fmt.Errorf("can't parse %s", res.Header.Get("Content-Type"))
 	}
 	if mediaType != "text/html" {
-		return []byte{}, fmt.Errorf("gethtml: content type not text/html for %s", rawURL)
+		return []byte{}, fmt.Errorf("content of %s not html", rawURL)
 	}
 
 	page, err := io.ReadAll(res.Body)
 	if err != nil {
-		return []byte{}, fmt.Errorf("gethtml: error reading response body, %v", err)
+		return []byte{}, fmt.Errorf("couldn't read response from %s", rawURL)
 	}
 
 	return page, nil
@@ -75,7 +76,7 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 				break
 			}
 
-			return response, fmt.Errorf("parsehtml: error tokenising html, %v", tokens.Err())
+			return response, errors.New("couldn't tokenise html")
 		}
 
 		if tn == html.TextToken {
@@ -115,7 +116,7 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 					if attr.Key == "href" {
 						structure, err := url.Parse(attr.Val)
 						if err != nil {
-							log.Println(fmt.Errorf("parsehtml: error parsing %s, %v", attr.Val, err))
+							log.Println(fmt.Errorf("can't parse %s", attr.Val))
 							continue
 						}
 
@@ -156,12 +157,12 @@ func GetRobots(rawURL string) ([]byte, error) {
 	client := &http.Client{}
 	res, err := client.Get(fmt.Sprintf("%srobots.txt", rawURL))
 	if err != nil {
-		return []byte{}, fmt.Errorf("getrobots: error from get request to %s, %v", rawURL, err)
+		return []byte{}, fmt.Errorf("couldn't make get request to %s", rawURL)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode == 403 {
-		return []byte{}, fmt.Errorf("getrobots: %d status code returned from %s", res.StatusCode, rawURL)
+		return []byte{}, fmt.Errorf("%d status code returned from %s", res.StatusCode, rawURL)
 	}
 	if res.StatusCode == 404 {
 		return []byte{}, nil
@@ -169,15 +170,15 @@ func GetRobots(rawURL string) ([]byte, error) {
 
 	mediaType, _, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
 	if err != nil {
-		return []byte{}, fmt.Errorf("getrobots: error parsing content type for %s, %v", rawURL, err)
+		return []byte{}, fmt.Errorf("can't parse %s", res.Header.Get("Content-Type"))
 	}
 	if mediaType != "text/plain" {
-		return []byte{}, fmt.Errorf("getrobots: robots.txt content type not text/plain for %s", rawURL)
+		return []byte{}, fmt.Errorf("robots.txt of %s not text", rawURL)
 	}
 
 	textFile, err := io.ReadAll(res.Body)
 	if err != nil {
-		return []byte{}, fmt.Errorf("getrobots: error reading response body, %v", err)
+		return []byte{}, fmt.Errorf("couldn't read response from %s", rawURL)
 	}
 
 	return textFile, nil
@@ -224,7 +225,7 @@ func ParseRobots(normURL string, textFile []byte) (Rules, error) {
 			case "Crawl-delay":
 				delay, err := strconv.Atoi(value)
 				if err != nil {
-					log.Println(fmt.Errorf("parserobots: error parsing crawl delay %s, %v", value, err))
+					log.Println(fmt.Errorf("can't parse crawl delay %s", value))
 					rules.Delay = 0
 				} else {
 					rules.Delay = delay
@@ -234,7 +235,7 @@ func ParseRobots(normURL string, textFile []byte) (Rules, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Println(fmt.Errorf("parserobots: error reading line, %v", err))
+		log.Println(errors.New("couldn't read line in robots.txt"))
 	}
 
 	return rules, nil

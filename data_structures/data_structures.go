@@ -21,7 +21,7 @@ func (q *Queue) Enqueue(url string) {
 
 func (q *Queue) Dequeue() (string, error) {
 	if len(*q) == 0 {
-		return "", errors.New("dequeue: error popping from an empty queue")
+		return "", errors.New("can't pop from an empty queue")
 	}
 
 	popped := (*q)[0]
@@ -32,7 +32,7 @@ func (q *Queue) Dequeue() (string, error) {
 
 func (q *Queue) Peek() (string, error) {
 	if len(*q) == 0 {
-		return "", errors.New("dequeue: error peeking into an empty queue")
+		return "", errors.New("can't peek into an empty queue")
 	}
 
 	return (*q)[0], nil
