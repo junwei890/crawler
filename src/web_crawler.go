@@ -1,6 +1,8 @@
 package src
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -12,12 +14,14 @@ import (
 	"github.com/junwei890/se-cli/data_structures"
 	"github.com/junwei890/se-cli/parsers"
 	"github.com/junwei890/se-cli/utils"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func Init() error {
+func Init(collection *mongo.Collection) error {
 	file, err := os.ReadFile("links.txt")
 	if err != nil {
-		return fmt.Errorf("init: error reading links.txt file, %v", err)
+		return errors.New("coudn't read links.txt file")
 	}
 	links := strings.Fields(string(file))
 
@@ -28,24 +32,30 @@ func Init() error {
 		wg.Add(1)
 		channel <- struct{}{}
 
-		go func(link string) {
+		go func(link string, db *mongo.Collection) {
 			defer func() {
 				<-channel
 				wg.Done()
 			}()
 
-			if err := crawler(link); err != nil {
+			if err := crawler(link, collection); err != nil {
 				log.Println(err)
 				return
 			}
-		}(link)
+		}(link, collection)
 	}
 	wg.Wait()
 
 	return nil
 }
 
-func crawler(startURL string) error {
+type Content struct {
+	URL     string `bson:"_id"`
+	Title   string `bson:"title"`
+	Content string `bson:"content"`
+}
+
+func crawler(startURL string, collection *mongo.Collection) error {
 	file, err := parsers.GetRobots(startURL)
 	if err != nil {
 		return err
@@ -68,11 +78,15 @@ func crawler(startURL string) error {
 
 	visited := map[string]struct{}{}
 	queue := &data_structures.Queue{}
+	content := []any{}
+	options := options.InsertMany().SetOrdered(false)
+
 	queue.Enqueue(startURL)
 
-	re, err := regexp.Compile(`[^A-Za-z ]+`)
+	pattern := `[^a-zA-Z0-9 ]+`
+	re, err := regexp.Compile(pattern)
 	if err != nil {
-		return fmt.Errorf("crawler: error compiling regex pattern, %v", err)
+		return fmt.Errorf("can't compile %s", pattern)
 	}
 
 	for {
@@ -105,8 +119,6 @@ func crawler(startURL string) error {
 			continue
 		}
 
-		log.Printf("crawling %s", popped)
-
 		page, err := parsers.GetHTML(popped)
 		if err != nil {
 			log.Println(err)
@@ -123,6 +135,8 @@ func crawler(startURL string) error {
 			queue.Enqueue(link)
 		}
 
+		log.Printf("crawled %s", popped)
+
 		slice := []string{}
 		for _, content := range res.Content {
 			slice = append(slice, re.ReplaceAllString(content, ""))
@@ -133,7 +147,16 @@ func crawler(startURL string) error {
 			continue
 		}
 
-		log.Println(cleaned)
+		content = append(content, Content{
+			URL:     popped,
+			Title:   res.Title,
+			Content: cleaned,
+		})
+	}
+
+	result, _ := collection.InsertMany(context.TODO(), content, options)
+	if len(result.InsertedIDs) != len(content) {
+		return errors.New("couldn't insert some content")
 	}
 
 	return nil

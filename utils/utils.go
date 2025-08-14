@@ -24,7 +24,7 @@ func CheckAbility(visited map[string]struct{}, rules parsers.Rules, normURL stri
 	for _, url := range rules.Disallowed {
 		match, err := path.Match(url, normURL)
 		if err != nil {
-			log.Println(fmt.Errorf("checkability: error while matching %s, %v", url, err))
+			log.Println(fmt.Errorf("can't match %s", url))
 			continue
 		}
 
@@ -42,7 +42,7 @@ func CheckAbility(visited map[string]struct{}, rules parsers.Rules, normURL stri
 	for _, url := range rules.Allowed {
 		match, err := path.Match(url, normURL)
 		if err != nil {
-			log.Println(fmt.Errorf("checkability: error while matching %s, %v", url, err))
+			log.Println(fmt.Errorf("can't match %s", url))
 			continue
 		}
 
@@ -71,7 +71,7 @@ func CheckAbility(visited map[string]struct{}, rules parsers.Rules, normURL stri
 func CheckDomain(domain *url.URL, rawURL string) (bool, error) {
 	structure, err := url.Parse(rawURL)
 	if err != nil {
-		return false, fmt.Errorf("checkdomain: error parsing %s, %v", rawURL, err)
+		return false, fmt.Errorf("can't parse %s", rawURL)
 	}
 
 	if structure.Hostname() != domain.Hostname() {
