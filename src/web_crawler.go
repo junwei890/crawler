@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/junwei890/se-cli/data_structures"
-	"github.com/junwei890/se-cli/parsers"
 	"github.com/junwei890/se-cli/utils"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -56,17 +55,17 @@ type Content struct {
 }
 
 func crawler(startURL string, collection *mongo.Collection) error {
-	file, err := parsers.GetRobots(startURL)
+	file, err := utils.GetRobots(startURL)
 	if err != nil {
 		return err
 	}
 
-	normURL, err := parsers.Normalize(startURL)
+	normURL, err := utils.Normalize(startURL)
 	if err != nil {
 		return err
 	}
 
-	rules, err := parsers.ParseRobots(normURL, file)
+	rules, err := utils.ParseRobots(normURL, file)
 	if err != nil {
 		return err
 	}
@@ -108,7 +107,7 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			continue
 		}
 
-		currURL, err := parsers.Normalize(popped)
+		currURL, err := utils.Normalize(popped)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -119,13 +118,13 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			continue
 		}
 
-		page, err := parsers.GetHTML(popped)
+		page, err := utils.GetHTML(popped)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		res, err := parsers.ParseHTML(dom, page)
+		res, err := utils.ParseHTML(dom, page)
 		if err != nil {
 			log.Println(err)
 			continue
