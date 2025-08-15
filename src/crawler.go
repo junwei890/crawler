@@ -4,25 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"sync"
 
-	"github.com/junwei890/se-cli/data_structures"
-	"github.com/junwei890/se-cli/utils"
+	"github.com/junwei890/crawler/utils"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func Init(collection *mongo.Collection) error {
-	file, err := os.ReadFile("links.txt")
+func StartCrawl(dbURI string, links []string) error {
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(dbURI))
 	if err != nil {
-		return errors.New("coudn't read links.txt file")
+		return err
 	}
-	links := strings.Fields(string(file))
+	defer func() {
+		if err := client.Disconnect(context.TODO()); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
+	db := client.Database("ssh")
+	collection := db.Collection("content")
 
 	wg := &sync.WaitGroup{}
 	channel := make(chan struct{}, 1000)
@@ -38,7 +42,7 @@ func Init(collection *mongo.Collection) error {
 			}()
 
 			if err := crawler(link, collection); err != nil {
-				log.Println(err)
+				fmt.Println(err)
 				return
 			}
 		}(link, collection)
@@ -76,16 +80,15 @@ func crawler(startURL string, collection *mongo.Collection) error {
 	}
 
 	visited := map[string]struct{}{}
-	queue := &data_structures.Queue{}
+	queue := &utils.Queue{}
 	content := []any{}
 	options := options.InsertMany().SetOrdered(false)
 
 	queue.Enqueue(startURL)
 
-	pattern := `[^a-zA-Z0-9 ]+`
-	re, err := regexp.Compile(pattern)
+	re, err := regexp.Compile(`[^a-zA-Z0-9 ]+`)
 	if err != nil {
-		return fmt.Errorf("can't compile %s", pattern)
+		return err
 	}
 
 	for {
@@ -100,7 +103,6 @@ func crawler(startURL string, collection *mongo.Collection) error {
 
 		ok, err := utils.CheckDomain(dom, popped)
 		if err != nil {
-			log.Println(err)
 			continue
 		}
 		if !ok {
@@ -109,7 +111,6 @@ func crawler(startURL string, collection *mongo.Collection) error {
 
 		currURL, err := utils.Normalize(popped)
 		if err != nil {
-			log.Println(err)
 			continue
 		}
 
@@ -120,13 +121,11 @@ func crawler(startURL string, collection *mongo.Collection) error {
 
 		page, err := utils.GetHTML(popped)
 		if err != nil {
-			log.Println(err)
 			continue
 		}
 
 		res, err := utils.ParseHTML(dom, page)
 		if err != nil {
-			log.Println(err)
 			continue
 		}
 
@@ -134,7 +133,7 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			queue.Enqueue(link)
 		}
 
-		log.Printf("crawled %s", popped)
+		fmt.Printf("crawled %s\n", popped)
 
 		slice := []string{}
 		for _, content := range res.Content {
