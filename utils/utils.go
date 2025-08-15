@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"net/url"
@@ -22,7 +21,7 @@ import (
 func Normalize(rawURL string) (string, error) {
 	structure, err := url.Parse(rawURL)
 	if err != nil {
-		return "", fmt.Errorf("can't parse %s", rawURL)
+		return "", err
 	}
 
 	return structure.Host + strings.TrimRight(structure.Path, "/"), nil
@@ -33,7 +32,7 @@ func GetHTML(rawURL string) ([]byte, error) {
 
 	res, err := client.Get(rawURL)
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn't make get request to %s", rawURL)
+		return []byte{}, err
 	}
 	defer res.Body.Close()
 
@@ -43,7 +42,7 @@ func GetHTML(rawURL string) ([]byte, error) {
 
 	mediaType, _, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
 	if err != nil {
-		return []byte{}, fmt.Errorf("can't parse %s", res.Header.Get("Content-Type"))
+		return []byte{}, err
 	}
 	if mediaType != "text/html" {
 		return []byte{}, fmt.Errorf("content of %s not html", rawURL)
@@ -51,7 +50,7 @@ func GetHTML(rawURL string) ([]byte, error) {
 
 	page, err := io.ReadAll(res.Body)
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn't read response from %s", rawURL)
+		return []byte{}, err
 	}
 
 	return page, nil
@@ -77,7 +76,7 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 				break
 			}
 
-			return response, errors.New("couldn't tokenise html")
+			return response, errors.New(html.ErrorToken.String())
 		}
 
 		if tn == html.TextToken {
@@ -117,7 +116,6 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 					if attr.Key == "href" {
 						structure, err := url.Parse(attr.Val)
 						if err != nil {
-							log.Println(fmt.Errorf("can't parse %s", attr.Val))
 							continue
 						}
 
@@ -158,7 +156,7 @@ func GetRobots(rawURL string) ([]byte, error) {
 	client := &http.Client{}
 	res, err := client.Get(fmt.Sprintf("%srobots.txt", rawURL))
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn't make get request to %s", rawURL)
+		return []byte{}, err
 	}
 	defer res.Body.Close()
 
@@ -171,7 +169,7 @@ func GetRobots(rawURL string) ([]byte, error) {
 
 	mediaType, _, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
 	if err != nil {
-		return []byte{}, fmt.Errorf("can't parse %s", res.Header.Get("Content-Type"))
+		return []byte{}, err
 	}
 	if mediaType != "text/plain" {
 		return []byte{}, fmt.Errorf("robots.txt of %s not text", rawURL)
@@ -179,7 +177,7 @@ func GetRobots(rawURL string) ([]byte, error) {
 
 	textFile, err := io.ReadAll(res.Body)
 	if err != nil {
-		return []byte{}, fmt.Errorf("couldn't read response from %s", rawURL)
+		return []byte{}, err
 	}
 
 	return textFile, nil
@@ -226,17 +224,12 @@ func ParseRobots(normURL string, textFile []byte) (Rules, error) {
 			case "Crawl-delay":
 				delay, err := strconv.Atoi(value)
 				if err != nil {
-					log.Println(fmt.Errorf("can't parse crawl delay %s", value))
 					rules.Delay = 0
 				} else {
 					rules.Delay = delay
 				}
 			}
 		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Println(errors.New("couldn't read line in robots.txt"))
 	}
 
 	return rules, nil
@@ -256,7 +249,6 @@ func CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
 	for _, url := range rules.Disallowed {
 		match, err := path.Match(url, normURL)
 		if err != nil {
-			log.Println(fmt.Errorf("can't match %s", url))
 			continue
 		}
 
@@ -274,7 +266,6 @@ func CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
 	for _, url := range rules.Allowed {
 		match, err := path.Match(url, normURL)
 		if err != nil {
-			log.Println(fmt.Errorf("can't match %s", url))
 			continue
 		}
 
@@ -303,7 +294,7 @@ func CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
 func CheckDomain(domain *url.URL, rawURL string) (bool, error) {
 	structure, err := url.Parse(rawURL)
 	if err != nil {
-		return false, fmt.Errorf("can't parse %s", rawURL)
+		return false, err
 	}
 
 	if structure.Hostname() != domain.Hostname() {
@@ -311,4 +302,45 @@ func CheckDomain(domain *url.URL, rawURL string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+type Queue []string
+
+type QueueOps interface {
+	Enqueue(string)
+	Dequeue() (string, error)
+	Peek() (string, error)
+	Empty() bool
+	Size() int
+}
+
+func (q *Queue) Enqueue(url string) {
+	*q = append(*q, url)
+}
+
+func (q *Queue) Dequeue() (string, error) {
+	if len(*q) == 0 {
+		return "", errors.New("can't pop from an empty queue")
+	}
+
+	popped := (*q)[0]
+	*q = slices.Delete(*q, 0, 1)
+
+	return popped, nil
+}
+
+func (q *Queue) Peek() (string, error) {
+	if len(*q) == 0 {
+		return "", errors.New("can't peek into an empty queue")
+	}
+
+	return (*q)[0], nil
+}
+
+func (q *Queue) CheckEmpty() bool {
+	return len(*q) == 0
+}
+
+func (q *Queue) Size() int {
+	return len(*q)
 }
