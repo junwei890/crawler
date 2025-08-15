@@ -5,7 +5,6 @@ go 1.24.4
 require (
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.6
-	github.com/joho/godotenv v1.5.1
 	go.mongodb.org/mongo-driver v1.17.4
 	golang.org/x/net v0.43.0
 )
