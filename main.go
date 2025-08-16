@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	if _, err := tea.NewProgram(ui.InitialModel()).Run(); err != nil {
+	if _, err := tea.NewProgram(ui.InitialModel(), tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println(err)
 	}
 }
