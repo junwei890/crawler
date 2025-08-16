@@ -36,6 +36,7 @@ func GetHTML(rawURL string) ([]byte, error) {
 	}
 	defer res.Body.Close()
 
+	// handling a response with bad status code
 	if res.StatusCode >= 400 && res.StatusCode < 500 {
 		return []byte{}, fmt.Errorf("%d status code returned from %s", res.StatusCode, rawURL)
 	}
@@ -67,9 +68,11 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 	skip := true
 	title := false
 
+	// tokenizing is better than recursive dives into divs
 	tokens := html.NewTokenizer(bytes.NewReader(page))
 
 	for {
+		// only want title, links and text not between script and style tags
 		tn := tokens.Next()
 
 		if tn == html.ErrorToken {
@@ -163,6 +166,7 @@ func GetRobots(rawURL string) ([]byte, error) {
 	}
 	defer res.Body.Close()
 
+	// if 403, server doesn't want us scraping, 404 is free game
 	if res.StatusCode == 403 {
 		return []byte{}, fmt.Errorf("%d status code returned from %s", res.StatusCode, rawURL)
 	}
@@ -196,6 +200,7 @@ func ParseRobots(normURL string, textFile []byte) (Rules, error) {
 	rules := Rules{}
 	applicable := false
 
+	// extracting allowed, disallowed routes and crawl delay
 	scanner := bufio.NewScanner(bytes.NewReader(textFile))
 	for scanner.Scan() {
 		if strings.TrimSpace(scanner.Text()) == "" || strings.HasPrefix(strings.TrimSpace(scanner.Text()), "#") {
@@ -249,6 +254,7 @@ func CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
 	disallowedOn := ""
 	allowedOn := ""
 
+	// if a route matches both allowed and disallowed, the longer match is the final rule
 	for _, url := range rules.Disallowed {
 		match, err := path.Match(url, normURL)
 		if err != nil {
@@ -305,6 +311,7 @@ func CheckDomain(domain *url.URL, rawURL string) (bool, error) {
 	return true, nil
 }
 
+// queue implementation
 type Queue []string
 
 type QueueOps interface {

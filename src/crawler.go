@@ -2,12 +2,12 @@ package src
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"log"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/junwei890/crawler/utils"
 	"go.mongodb.org/mongo-driver/bson"
@@ -23,13 +23,14 @@ func StartCrawl(dbURI string, links []string) error {
 
 	defer func() {
 		if err := client.Disconnect(context.TODO()); err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 	}()
 
 	db := client.Database("crawler")
 	collection := db.Collection("content")
 
+	// goroutine setup, max 1000 concurrent domains
 	wg := &sync.WaitGroup{}
 	channel := make(chan struct{}, 1000)
 
@@ -44,12 +45,13 @@ func StartCrawl(dbURI string, links []string) error {
 			}()
 
 			if err := crawler(link, collection); err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		}(link, collection)
 	}
 	wg.Wait()
 
+	// create index if it doesn't exist, update if it does
 	indexName := "search_index"
 	opts := options.SearchIndexes().SetName(indexName).SetType("search")
 
@@ -105,6 +107,7 @@ type Content struct {
 }
 
 func crawler(startURL string, collection *mongo.Collection) error {
+	// get and parse robots.txt file first
 	file, err := utils.GetRobots(startURL)
 	if err != nil {
 		return err
@@ -128,6 +131,8 @@ func crawler(startURL string, collection *mongo.Collection) error {
 	visited := map[string]struct{}{}
 	queue := &utils.Queue{}
 	content := []any{}
+
+	// if id already exists, error won't be thrown, continue inserting
 	options := options.InsertMany().SetOrdered(false)
 
 	queue.Enqueue(startURL)
@@ -138,6 +143,7 @@ func crawler(startURL string, collection *mongo.Collection) error {
 	}
 
 	for {
+		// early returns
 		if comp := queue.CheckEmpty(); comp {
 			break
 		}
@@ -165,6 +171,15 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			continue
 		}
 
+		// respecting crawl delay while min maxxing where the sleep is called
+		subWg := &sync.WaitGroup{}
+		subWg.Add(1)
+		go func() {
+			defer subWg.Done()
+
+			time.Sleep(time.Duration(rules.Delay) * time.Second)
+		}()
+
 		page, err := utils.GetHTML(popped)
 		if err != nil {
 			continue
@@ -189,19 +204,19 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			continue
 		}
 
+		log.Printf("crawled %s", popped)
+
 		content = append(content, Content{
 			URL:     popped,
 			Title:   res.Title,
 			Content: cleaned,
 		})
+
+		subWg.Wait()
 	}
 
-	result, err := collection.InsertMany(context.TODO(), content, options)
-	if err != nil {
+	if _, err := collection.InsertMany(context.TODO(), content, options); err != nil {
 		return err
-	}
-	if len(result.InsertedIDs) != len(content) {
-		return errors.New("couldn't insert some content")
 	}
 
 	return nil
