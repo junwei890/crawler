@@ -8,16 +8,12 @@ This is a web crawler I wrote to gather links to articles, research papers and b
 ## Installation
 Run `go install github.com/junwei890/crawler@latest` in your terminal.
 
-Now you can run the command `crawler` in your terminal to bring up the UI.
-![image](images/crawler_ui.png)
+## Usage
+You need to have a crawler.txt file in your home directory, it should contain your MongoDB URI and links you would like to scrape. See [crawler.txt.example](https://github.com/junwei890/crawler/blob/main/crawler.txt.example) for how it should be formatted.
 
-## Tips
-- You don't have to create a MongoDB database and collection before scraping websites, the crawler takes care of it for you.
-- You don't have to index the collection for [Atlas Search](https://www.mongodb.com/docs/atlas/atlas-search/) after scraping is done, the crawler takes care of it for you too.
-- Make sure links you input are separated by a newline and they have their protocol (ideally https://).
-- Running the crawler on an empty cluster will always be faster than running it when there is already a collection and index because creating an index is faster than reindexing.
-- Some websites enforce long crawl delays, be patient.
-- I've set a hard limit of 1000 concurrent crawlers, just because you can scrape 1000 websites at a time doesn't mean you should, consult your hardware first.
+Run `crawler` in your terminal to start scraping.
 
-## Possible extensions
-- [ ] Panel to see logs while scraping.
+### Tips
+- You don't have to create a MongoDB database and collection before scraping websites, the crawler takes care of that for you.
+- You don't have to index the collection for [Atlas Search](https://www.mongodb.com/docs/atlas/atlas-search/) after scraping is done, the crawler takes care of that for you too.
+- Logs will print in your terminal when you run the program.
