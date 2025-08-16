@@ -129,4 +129,3 @@ Ctrl-C to exit.`
 
 	return fmt.Sprintf("MongoDB URI\n%s\nLinks\n%s\nSwitch focus: Tab | Confirm input: Ctrl-S | Exit: Ctrl-C", m.uri.View(), m.links.View())
 }
-

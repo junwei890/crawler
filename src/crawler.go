@@ -3,13 +3,13 @@ package src
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
 
 	"github.com/junwei890/crawler/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -21,7 +21,6 @@ func StartCrawl(dbURI string, links []string) error {
 	}
 	defer func() {
 		if err := client.Disconnect(context.TODO()); err != nil {
-			fmt.Println(err)
 		}
 	}()
 
@@ -42,12 +41,54 @@ func StartCrawl(dbURI string, links []string) error {
 			}()
 
 			if err := crawler(link, collection); err != nil {
-				fmt.Println(err)
-				return
 			}
 		}(link, collection)
 	}
 	wg.Wait()
+
+	indexName := "search_index"
+	opts := options.SearchIndexes().SetName(indexName).SetType("search")
+
+	cursor, err := collection.SearchIndexes().List(context.TODO(), opts)
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(context.TODO())
+
+	exists := false
+	for cursor.Next(context.TODO()) {
+		var indexMap bson.M
+		if err := cursor.Decode(&indexMap); err != nil {
+			return err
+		}
+
+		if indexMap["name"] == indexName {
+			exists = true
+		}
+	}
+
+	searchIndexModel := mongo.SearchIndexModel{
+		Definition: bson.D{
+			{Key: "mappings", Value: bson.D{
+				{Key: "dynamic", Value: false},
+				{Key: "fields", Value: bson.D{
+					{Key: "content", Value: bson.D{
+						{Key: "type", Value: "string"},
+					}},
+				}},
+			}},
+		},
+		Options: opts,
+	}
+	if exists {
+		if err := collection.SearchIndexes().UpdateOne(context.TODO(), indexName, searchIndexModel.Definition); err != nil {
+			return err
+		}
+	} else {
+		if _, err := collection.SearchIndexes().CreateOne(context.TODO(), searchIndexModel); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -133,8 +174,6 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			queue.Enqueue(link)
 		}
 
-		fmt.Printf("crawled %s\n", popped)
-
 		slice := []string{}
 		for _, content := range res.Content {
 			slice = append(slice, re.ReplaceAllString(content, ""))
@@ -152,7 +191,10 @@ func crawler(startURL string, collection *mongo.Collection) error {
 		})
 	}
 
-	result, _ := collection.InsertMany(context.TODO(), content, options)
+	result, err := collection.InsertMany(context.TODO(), content, options)
+	if err != nil {
+		return err
+	}
 	if len(result.InsertedIDs) != len(content) {
 		return errors.New("couldn't insert some content")
 	}
