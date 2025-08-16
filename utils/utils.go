@@ -68,6 +68,7 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 	title := false
 
 	tokens := html.NewTokenizer(bytes.NewReader(page))
+
 	for {
 		tn := tokens.Next()
 
@@ -86,7 +87,6 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 				response.Title = strings.Join(strings.Fields(t.Data), " ")
 				continue
 			}
-
 			if skip {
 				continue
 			}
@@ -95,6 +95,7 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 			if clean != "" {
 				response.Content = append(response.Content, clean)
 			}
+
 			continue
 		}
 
@@ -257,7 +258,6 @@ func CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
 		if !match {
 			match = strings.HasPrefix(normURL, url)
 		}
-
 		if match {
 			disallowedOn = url
 			green = !match
@@ -274,7 +274,6 @@ func CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
 		if !match {
 			match = strings.HasPrefix(normURL, url)
 		}
-
 		if match {
 			allowedOn = url
 			green = match

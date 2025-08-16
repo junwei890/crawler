@@ -16,17 +16,17 @@ var (
 	labelStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFD700"))
 
 	focusedInputStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#F8F8FF"))
-
+	
 	blurredInputStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#778899"))
-
+	
 	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#778899")).Bold(true)
-
+	
 	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#778899")).Bold(true)
-
+	
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC143C")).Bold(true)
-
+	
 	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ADFF2F")).Bold(true)
-
+	
 	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A9A9A9")).Italic(true)
 )
 
@@ -81,12 +81,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+
 		return m, nil
+
 	case tea.KeyMsg:
 		if m.crawling {
 			if msg.Type == tea.KeyCtrlC {
 				return m, tea.Quit
 			}
+
 			return m, nil
 		}
 
@@ -99,28 +102,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.uri.Focus()
 				m.links.Blur()
 			}
+
 			return m, nil
+
 		case tea.KeyCtrlS:
 			if m.uri.Focused() {
 				m.links.Focus()
 				m.uri.Blur()
+
 				return m, nil
 			} else if m.links.Focused() {
 				m.crawling = true
+
 				return m, tea.Batch(m.spinner.Tick, startCrawl(m.uri.Value(), strings.Fields(m.links.Value())))
 			}
+
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
 		}
-
 	case crawlDoneMsg:
 		m.crawling = false
 		m.done = true
 		m.err = msg.err
+
 		return m, nil
 	}
 
 	var cmd tea.Cmd
+
 	if m.crawling {
 		m.spinner, cmd = m.spinner.Update(msg)
 	} else {
@@ -130,6 +139,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.links, cmd = m.links.Update(msg)
 		}
 	}
+
 	return m, cmd
 }
 
@@ -139,16 +149,20 @@ func (m model) View() string {
 	if m.done {
 		if m.err != nil {
 			content = fmt.Sprintf("Crawling failed: %s\n\nPress Ctrl-C to exit.", m.err)
+
 			content = errorStyle.Render(content)
 		} else {
 			content = "Crawling completed successfully!\n\nPress Ctrl-C to exit."
+
 			content = successStyle.Render(content)
 		}
 	} else if m.crawling {
 		content = fmt.Sprintf("%s Crawling and indexing, this might take awhile...\n\nPress Ctrl-C to cancel.", m.spinner.View())
+		
 		content = statusStyle.Render(content)
 	} else {
 		var uriView, linksView string
+		
 		if m.uri.Focused() {
 			uriView = focusedInputStyle.Render(m.uri.View())
 			linksView = blurredInputStyle.Render(m.links.View())
@@ -164,5 +178,6 @@ func (m model) View() string {
 	if m.width > 0 && m.height > 0 {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
 	}
+
 	return content
 }
