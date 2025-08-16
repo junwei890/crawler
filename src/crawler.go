@@ -3,6 +3,7 @@ package src
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -21,10 +22,11 @@ func StartCrawl(dbURI string, links []string) error {
 	}
 	defer func() {
 		if err := client.Disconnect(context.TODO()); err != nil {
+			fmt.Println(err)
 		}
 	}()
 
-	db := client.Database("ssh")
+	db := client.Database("crawler")
 	collection := db.Collection("content")
 
 	wg := &sync.WaitGroup{}
@@ -41,6 +43,7 @@ func StartCrawl(dbURI string, links []string) error {
 			}()
 
 			if err := crawler(link, collection); err != nil {
+				fmt.Println(err)
 			}
 		}(link, collection)
 	}
