@@ -63,9 +63,11 @@ func TestNormalize(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			result, err := Normalize(testCase.input)
+
 			if (err != nil) != testCase.errorPresent {
 				t.Errorf("%s failed, unexpected error: %v", testCase.name, err)
 			}
+
 			if result != testCase.expected {
 				t.Errorf("%s failed, %s != %s", testCase.name, result, testCase.expected)
 			}
@@ -132,15 +134,19 @@ func TestParseHTML(t *testing.T) {
 
 	t.Run(testCase.name, func(t *testing.T) {
 		result, err := ParseHTML(testCase.domain, testCase.page)
+
 		if err != nil {
 			t.Errorf("%s failed, unexpected error: %v", testCase.name, err)
 		}
+
 		if result.Title != testCase.expected.Title {
 			t.Errorf("%s failed, %s != %s", testCase.name, result.Title, testCase.expected.Title)
 		}
+
 		if comp := slices.Equal(result.Content, testCase.expected.Content); !comp {
 			t.Errorf("%s failed, %v != %v", testCase.name, result.Content, testCase.expected.Content)
 		}
+
 		if comp := slices.Equal(result.Links, testCase.expected.Links); !comp {
 			t.Errorf("%s failed, %v != %v", testCase.name, result.Links, testCase.expected.Links)
 		}
@@ -208,15 +214,19 @@ func TestParseRobots(t *testing.T) {
 
 	t.Run(testCase.name, func(t *testing.T) {
 		result, err := ParseRobots(testCase.url, testCase.file)
+
 		if err != nil {
 			t.Errorf("%s failed, unexpected error: %v", testCase.name, err)
 		}
+
 		if comp := slices.Equal(result.Allowed, testCase.expected.Allowed); !comp {
 			t.Errorf("%s failed, %v != %v", testCase.name, result.Allowed, testCase.expected.Allowed)
 		}
+
 		if comp := slices.Equal(result.Disallowed, testCase.expected.Disallowed); !comp {
 			t.Errorf("%s failed, %v != %v", testCase.name, result.Disallowed, testCase.expected.Disallowed)
 		}
+
 		if result.Delay != testCase.expected.Delay {
 			t.Errorf("%s failed, %v != %v", testCase.name, result.Delay, testCase.expected.Delay)
 		}
@@ -404,9 +414,11 @@ func TestCheckDomain(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			result, err := CheckDomain(testCase.domain, testCase.rawURL)
+
 			if (err != nil) != testCase.errorPresent {
 				t.Errorf("%s failed, expected error: %v", testCase.name, err)
 			}
+
 			if result != testCase.expected {
 				t.Errorf("%s failed, %v != %v", testCase.name, result, testCase.expected)
 			}

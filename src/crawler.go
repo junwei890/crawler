@@ -20,6 +20,7 @@ func StartCrawl(dbURI string, links []string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		if err := client.Disconnect(context.TODO()); err != nil {
 			fmt.Println(err)
@@ -83,6 +84,7 @@ func StartCrawl(dbURI string, links []string) error {
 		},
 		Options: opts,
 	}
+
 	if exists {
 		if err := collection.SearchIndexes().UpdateOne(context.TODO(), indexName, searchIndexModel.Definition); err != nil {
 			return err
