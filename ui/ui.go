@@ -16,17 +16,17 @@ var (
 	labelStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFD700"))
 
 	focusedInputStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#F8F8FF"))
-	
+
 	blurredInputStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#778899"))
-	
+
 	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#778899")).Bold(true)
-	
+
 	statusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#778899")).Bold(true)
-	
+
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC143C")).Bold(true)
-	
+
 	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ADFF2F")).Bold(true)
-	
+
 	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#A9A9A9")).Italic(true)
 )
 
@@ -158,11 +158,11 @@ func (m model) View() string {
 		}
 	} else if m.crawling {
 		content = fmt.Sprintf("%s Crawling and indexing, this might take awhile...\n\nPress Ctrl-C to cancel.", m.spinner.View())
-		
+
 		content = statusStyle.Render(content)
 	} else {
 		var uriView, linksView string
-		
+
 		if m.uri.Focused() {
 			uriView = focusedInputStyle.Render(m.uri.View())
 			linksView = blurredInputStyle.Render(m.links.View())
