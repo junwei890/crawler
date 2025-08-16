@@ -153,8 +153,10 @@ func ParseHTML(domain *url.URL, page []byte) (Response, error) {
 }
 
 func GetRobots(rawURL string) ([]byte, error) {
+	route := fmt.Sprintf("%s/robots.txt", strings.TrimRight(rawURL, "/"))
+
 	client := &http.Client{}
-	res, err := client.Get(fmt.Sprintf("%srobots.txt", rawURL))
+	res, err := client.Get(route)
 	if err != nil {
 		return []byte{}, err
 	}

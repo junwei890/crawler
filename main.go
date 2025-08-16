@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/junwei890/crawler/ui"
@@ -9,6 +9,6 @@ import (
 
 func main() {
 	if _, err := tea.NewProgram(ui.InitialModel()).Run(); err != nil {
-		os.Exit(1)
+		fmt.Println(err)
 	}
 }
