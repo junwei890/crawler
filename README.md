@@ -11,14 +11,14 @@ Clone the repository into your working directory using:
 git clone https://github.com/junwei890/crawler.git
 ```
 
-Head into the project directory and create a .env file and a crawler.txt file
+Head into the project directory and create a `.env` file and a `crawler.txt` file
 ```
 cd crawler
 touch .env
 touch crawler.txt
 ```
 
-In the `.env` file, enter your MongoDB cluster connection string. There is no need to create a database or collection before running the crawler, the crawler takes care of that for you. The crawler will also create an Atlas search index after it's done crawling. In the event that you run the crawler multiple times, logic has been written to build on top of the database and index that was created when you first ran the crawler.
+In the `.env` file, enter your MongoDB cluster connection string. There is **no need** to create a database or collection before running the crawler, the crawler takes care of that for you. The crawler will also create an Atlas search index after it's done crawling. In the event that you run the crawler multiple times, logic has been written to build on top of the database and index that was created when you first ran the crawler.
 
 In the `crawler.txt` file, input any websites you would like to crawl, making sure each website is on a newline.
 
