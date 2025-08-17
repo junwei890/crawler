@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/junwei890/crawler/src"
@@ -21,7 +23,9 @@ func main() {
 	}
 	links := strings.Fields(string(linksInBytes))
 
+	start := time.Now()
 	if err := src.StartCrawl(mongoURI, links); err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println(time.Since(start))
 }
