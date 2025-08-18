@@ -254,7 +254,7 @@ func CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
 	disallowedOn := ""
 	allowedOn := ""
 
-	// if a route matches both allowed and disallowed, the longer match is the final rule
+	// if a route matches under allowed and disallowed, the longer match is final
 	for _, url := range rules.Disallowed {
 		match, err := path.Match(url, normURL)
 		if err != nil {
