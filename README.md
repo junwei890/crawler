@@ -26,9 +26,11 @@ This is the main UI, in the first input field, enter your MongoDB URI. In the se
 Make sure each site is on a newline and has its protocol.
 
 A successful crawl will show a message like the one below:
+
 ![image1](./images/success.png)
 
 While an unsuccessful crawl will show a message like the one below:
+
 ![image2](./images/failure.png)
 
 ## Notes
