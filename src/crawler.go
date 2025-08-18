@@ -2,7 +2,6 @@ package src
 
 import (
 	"context"
-	"log"
 	"net/url"
 	"regexp"
 	"strings"
@@ -15,22 +14,17 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func StartCrawl(dbURI string, links []string) error {
+func StartCrawl(dbURI string, links []string, stream chan struct{}) error {
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(dbURI))
 	if err != nil {
 		return err
 	}
 
-	defer func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			log.Println(err)
-		}
-	}()
+	defer client.Disconnect(context.TODO())
 
 	db := client.Database("crawler")
 	collection := db.Collection("content")
 
-	// goroutine setup, max 1000 concurrent domains
 	wg := &sync.WaitGroup{}
 	channel := make(chan struct{}, 1000)
 
@@ -44,8 +38,8 @@ func StartCrawl(dbURI string, links []string) error {
 				wg.Done()
 			}()
 
-			if err := crawler(link, collection); err != nil {
-				log.Println(err)
+			if err := crawler(link, collection, stream); err != nil {
+				return
 			}
 		}(link, collection)
 	}
@@ -106,7 +100,7 @@ type Content struct {
 	Content string `bson:"content"`
 }
 
-func crawler(startURL string, collection *mongo.Collection) error {
+func crawler(startURL string, collection *mongo.Collection, stream chan struct{}) error {
 	// get and parse robots.txt file first
 	file, err := utils.GetRobots(startURL)
 	if err != nil {
@@ -132,7 +126,7 @@ func crawler(startURL string, collection *mongo.Collection) error {
 	queue := &utils.Queue{}
 	content := []any{}
 
-	// if id already exists, error won't be thrown, continue inserting
+	// if id already exists in the database, error won't be thrown, continue inserting
 	options := options.InsertMany().SetOrdered(false)
 
 	queue.Enqueue(startURL)
@@ -204,7 +198,7 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			continue
 		}
 
-		log.Printf("crawled %s", popped)
+		stream <- struct{}{}
 
 		content = append(content, Content{
 			URL:     popped,
