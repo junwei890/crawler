@@ -1,5 +1,5 @@
 # crawler
-This is a web crawler I wrote for fun, it's fast, polite and stack safe. If you find a web crawler useful, feel free to follow the installation instructions below.
+This is a web crawler I wrote that allows for large scale concurrency while being stack safe and polite.
 
 ## Requirements
 - [Go](https://go.dev/doc/install) installed
@@ -25,13 +25,11 @@ This is the main UI, in the first input field, enter your MongoDB URI. In the se
 
 Make sure each site is on a newline and has its protocol.
 
+A successful crawl will show a message like the one below:
 ![image1](./images/success.png)
 
-A nil error return will show a success message.
-
+While an unsuccessful crawl will show a message like the one below:
 ![image2](./images/failure.png)
-
-A non-nil error return will show a error message
 
 ## Notes
 Some sites enforce allowed and disallowed routes as well as crawl delays, this crawler abides by all of them.
