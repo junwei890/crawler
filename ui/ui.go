@@ -49,7 +49,7 @@ type model struct {
 
 func InitialModel() model {
 	uri := textinput.New()
-	uri.Placeholder = "    MongoDB URI here"
+	uri.Placeholder = "MongoDB URI here"
 	uri.Focus()
 	uri.Width = 97
 
