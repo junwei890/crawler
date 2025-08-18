@@ -38,7 +38,7 @@ func GetHTML(rawURL string) ([]byte, error) {
 
 	// handling a response with bad status code
 	if res.StatusCode >= 400 && res.StatusCode < 500 {
-		return []byte{}, fmt.Errorf("%d status code returned from %s", res.StatusCode, rawURL)
+		return []byte{}, fmt.Errorf("%d status code returned", res.StatusCode)
 	}
 
 	mediaType, _, err := mime.ParseMediaType(res.Header.Get("Content-Type"))
@@ -46,7 +46,7 @@ func GetHTML(rawURL string) ([]byte, error) {
 		return []byte{}, err
 	}
 	if mediaType != "text/html" {
-		return []byte{}, fmt.Errorf("content of %s not html", rawURL)
+		return []byte{}, errors.New("content not text/html")
 	}
 
 	page, err := io.ReadAll(res.Body)
@@ -168,7 +168,7 @@ func GetRobots(rawURL string) ([]byte, error) {
 
 	// if 403, server doesn't want us scraping, 404 is free game
 	if res.StatusCode == 403 {
-		return []byte{}, fmt.Errorf("%d status code returned from %s", res.StatusCode, rawURL)
+		return []byte{}, fmt.Errorf("%d status code returned", res.StatusCode)
 	}
 	if res.StatusCode == 404 {
 		return []byte{}, nil
@@ -179,7 +179,7 @@ func GetRobots(rawURL string) ([]byte, error) {
 		return []byte{}, err
 	}
 	if mediaType != "text/plain" {
-		return []byte{}, fmt.Errorf("robots.txt of %s not text", rawURL)
+		return []byte{}, errors.New("robots.txt content type not text/plain")
 	}
 
 	textFile, err := io.ReadAll(res.Body)

@@ -2,6 +2,7 @@ package src
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -14,7 +15,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func StartCrawl(dbURI string, links []string, stream chan struct{}) error {
+func StartCrawl(dbURI string, links []string, stream chan struct{}, errors chan string) error {
+	defer func() {
+		close(stream)
+		close(errors)
+	}()
+
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(dbURI))
 	if err != nil {
 		return err
@@ -38,14 +44,14 @@ func StartCrawl(dbURI string, links []string, stream chan struct{}) error {
 				wg.Done()
 			}()
 
-			if err := crawler(link, collection, stream); err != nil {
-				return
+			if err := crawler(link, collection, stream, errors); err != nil {
+				errors <- err.Error()
 			}
 		}(link, collection)
 	}
 	wg.Wait()
 
-	// create index if it doesn't exist, update if it does
+	// create index if it doesn't exist, update it if it does
 	indexName := "search_index"
 	opts := options.SearchIndexes().SetName(indexName).SetType("search")
 
@@ -100,40 +106,40 @@ type Content struct {
 	Content string `bson:"content"`
 }
 
-func crawler(startURL string, collection *mongo.Collection, stream chan struct{}) error {
+func crawler(startURL string, collection *mongo.Collection, stream chan struct{}, errors chan string) error {
 	// get and parse robots.txt file first
 	file, err := utils.GetRobots(startURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("didn't crawl %s: %v", startURL, err)
 	}
 
 	normURL, err := utils.Normalize(startURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("didn't crawl %s: %v", startURL, err)
 	}
 
 	rules, err := utils.ParseRobots(normURL, file)
 	if err != nil {
-		return err
+		return fmt.Errorf("didn't crawl %s: %v", startURL, err)
 	}
 
 	dom, err := url.Parse(startURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("didn't crawl %s: %v", startURL, err)
 	}
 
 	visited := map[string]struct{}{}
 	queue := &utils.Queue{}
 	content := []any{}
 
-	// if id already exists in the database, error won't be thrown, continue inserting
+	// if id already exists in the collection don't error and continue inserting
 	options := options.InsertMany().SetOrdered(false)
 
 	queue.Enqueue(startURL)
 
 	re, err := regexp.Compile(`[^a-zA-Z0-9 ]+`)
 	if err != nil {
-		return err
+		return fmt.Errorf("didn't crawl %s: %v", startURL, err)
 	}
 
 	for {
@@ -149,6 +155,7 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 
 		ok, err := utils.CheckDomain(dom, popped)
 		if err != nil {
+			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
 			continue
 		}
 		if !ok {
@@ -157,6 +164,7 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 
 		currURL, err := utils.Normalize(popped)
 		if err != nil {
+			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
 			continue
 		}
 
@@ -165,7 +173,7 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 			continue
 		}
 
-		// respecting crawl delay while min maxxing where the sleep is called
+		// sleeping for crawl delay right before get request
 		subWg := &sync.WaitGroup{}
 		subWg.Add(1)
 		go func() {
@@ -176,11 +184,13 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 
 		page, err := utils.GetHTML(popped)
 		if err != nil {
+			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
 			continue
 		}
 
 		res, err := utils.ParseHTML(dom, page)
 		if err != nil {
+			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
 			continue
 		}
 
@@ -206,6 +216,7 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 			Content: cleaned,
 		})
 
+		// wait for sleep to finish before proceeding
 		subWg.Wait()
 	}
 
