@@ -2,10 +2,12 @@ package src
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +26,7 @@ func StartCrawl(dbURI string, links []string) error {
 
 	defer client.Disconnect(context.TODO())
 
+	// doesn't actually get created till something is inserted
 	db := client.Database("crawler")
 	collection := db.Collection("content")
 
@@ -46,6 +49,15 @@ func StartCrawl(dbURI string, links []string) error {
 		}(link, collection)
 	}
 	wg.Wait()
+
+	// check if anything was inserted into the collection before indexing
+	names, err := client.ListDatabaseNames(context.TODO(), bson.D{})
+	if err != nil {
+		return err
+	}
+	if ok := slices.Contains(names, "crawler"); !ok {
+		return errors.New("no sites were crawled")
+	}
 
 	// create index if it doesn't exist, update it if it does
 	indexName := "search_index"
