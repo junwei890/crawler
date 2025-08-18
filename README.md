@@ -25,14 +25,6 @@ This is the main UI, in the first input field, enter your MongoDB URI. In the se
 
 Make sure each site is on a newline and has its protocol.
 
-A successful crawl will show a message like the one below:
-
-![image1](./images/success.png)
-
-While an unsuccessful crawl will show a message like the one below:
-
-![image2](./images/failure.png)
-
 ## Inner workings
 ### Program entry
 Once the MongoDB URI and sites have been entered, a database connection is established and a Goroutine is created to crawl each site, up to a **thousand**.
@@ -73,3 +65,7 @@ Once each site exits the for loop, titles and content we extracted are **bulk in
 Once all sites have been crawled, the collection is then **automatically indexed** for Atlas Search.
 
 The crawler builds on top of the database, collection and index that was created on the first successful run on subsequent program executions. All of this is handled by the crawler.
+
+## Extensions
+- [x] Viewport to see error logs.
+- [ ] Site map crawling

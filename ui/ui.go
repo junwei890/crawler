@@ -7,19 +7,14 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/junwei890/crawler/src"
 )
 
 var (
-	labels = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#C562AF"))
-
-	focused = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#B33791"))
-
-	blurred = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#FEC5F6"))
-
-	status = lipgloss.NewStyle().Foreground(lipgloss.Color("#FEC5F6")).Bold(true)
+	focused = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#322C2B"))
 
 	errored = lipgloss.NewStyle().Foreground(lipgloss.Color("#DC3C22")).Bold(true)
 
@@ -27,6 +22,8 @@ var (
 
 	bindings = lipgloss.NewStyle().Foreground(lipgloss.Color("#A9A9A9")).Italic(true)
 )
+
+type errorLogs string
 
 type conversion struct{}
 
@@ -38,8 +35,11 @@ type model struct {
 	uri      textinput.Model
 	sites    textarea.Model
 	spinner  spinner.Model
+	view     viewport.Model
 	stream   chan struct{}
+	errors   chan string
 	count    int
+	logs     []string
 	crawling bool
 	done     bool
 	err      error
@@ -49,29 +49,33 @@ type model struct {
 
 func InitialModel() model {
 	uri := textinput.New()
-	uri.Placeholder = "Paste your MongoDB URI here"
+	uri.Placeholder = "    MongoDB URI here"
 	uri.Focus()
 	uri.Width = 97
 
 	sites := textarea.New()
-	sites.Placeholder = "Paste sites here, making sure each site is on a newline"
+	sites.Placeholder = "Sites here, each site should be on a newline"
 	sites.SetWidth(100)
-	sites.SetHeight(20)
+	sites.SetHeight(10)
 
 	s := spinner.New()
 	s.Spinner = spinner.Meter
+
+	v := viewport.New(150, 20)
 
 	return model{
 		uri:     uri,
 		sites:   sites,
 		spinner: s,
+		view:    v,
 		stream:  make(chan struct{}),
+		errors:  make(chan string),
 	}
 }
 
-func startCrawl(uri string, links []string, stream chan struct{}) tea.Cmd {
+func startCrawl(uri string, links []string, stream chan struct{}, errors chan string) tea.Cmd {
 	return func() tea.Msg {
-		err := src.StartCrawl(uri, links, stream)
+		err := src.StartCrawl(uri, links, stream, errors)
 
 		// could be nil
 		return doneMsg{err: err}
@@ -85,8 +89,15 @@ func wait(stream chan struct{}) tea.Cmd {
 	}
 }
 
+// this too
+func waitErrors(errors chan string) tea.Cmd {
+	return func() tea.Msg {
+		return errorLogs(<-errors)
+	}
+}
+
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(wait(m.stream), waitErrors(m.errors), textinput.Blink)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -125,16 +136,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.sites.Focused() {
 				m.crawling = true
 
-				return m, tea.Batch(m.spinner.Tick, wait(m.stream), startCrawl(m.uri.Value(), strings.Fields(m.sites.Value()), m.stream))
+				return m, tea.Batch(m.spinner.Tick, startCrawl(m.uri.Value(), strings.Fields(m.sites.Value()), m.stream, m.errors))
 			}
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
 		}
 	case conversion:
-		m.count++
-
 		// important, if not program blocks forever
-		return m, wait(m.stream)
+		if m.crawling {
+			m.count++
+			return m, wait(m.stream)
+		}
+		return m, nil
+	case errorLogs:
+		m.logs = append(m.logs, string(msg))
+		var logs string
+		for _, log := range m.logs {
+			logs += fmt.Sprintf("%s\n", log)
+		}
+
+		m.view.SetContent(logs)
+
+		// same here
+		return m, waitErrors(m.errors)
 	case doneMsg:
 		m.crawling = false
 		m.done = true
@@ -144,17 +168,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 	if m.crawling {
 		m.spinner, cmd = m.spinner.Update(msg)
+		cmds = append(cmds, cmd)
+		m.view, cmd = m.view.Update(msg)
+		cmds = append(cmds, cmd)
 	} else {
 		if m.uri.Focused() {
 			m.uri, cmd = m.uri.Update(msg)
+			cmds = append(cmds, cmd)
 		} else if m.sites.Focused() {
 			m.sites, cmd = m.sites.Update(msg)
+			cmds = append(cmds, cmd)
 		}
 	}
 
-	return m, cmd
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
@@ -162,24 +192,24 @@ func (m model) View() string {
 
 	if m.done {
 		if m.err != nil {
-			ui = errored.Render(fmt.Sprintf("Crawling failed: %s\n\nCtrl-C to exit.", m.err))
+			ui = errored.Render(fmt.Sprintf("Crawl failed: %s", m.err)) + "\n\n" + "Miscellaneous error logs" + "\n" + focused.Render(m.view.View()) + "\n" + bindings.Render("Ctrl-C/Esc to exit")
 		} else {
-			ui = finished.Render(fmt.Sprintf("Crawling completed! %d pages crawled.\n\nCtrl-C to exit.", m.count))
+			ui = finished.Render(fmt.Sprintf("Crawl completed! %d pages crawled.", m.count)) + "\n\n" + "Miscellaneous error logs" + "\n" + focused.Render(m.view.View()) + "\n" + bindings.Render("Ctrl-C/Esc to exit")
 		}
 	} else if m.crawling {
-		ui = status.Render(fmt.Sprintf("%s  Pages crawled: %d", m.spinner.View(), m.count))
+		ui = fmt.Sprintf("%s  Pages crawled: %d", m.spinner.View(), m.count) + "\n\n" + "Miscellaneous error logs" + "\n" + focused.Render(m.view.View()) + "\n" + bindings.Render("Ctrl-C/Esc to exit")
 	} else {
 		var uriView, sitesView string
 		if m.uri.Focused() {
 			uriView = focused.Render(m.uri.View())
-			sitesView = blurred.Render(m.sites.View())
+			sitesView = m.sites.View()
 		} else {
-			uriView = blurred.Render(m.uri.View())
+			uriView = m.uri.View()
 			sitesView = focused.Render(m.sites.View())
 		}
 
 		keybinds := bindings.Render("Tab: Switch focus • Ctrl-S: Confirm input field • Ctrl-C/Esc: Exit")
-		ui = labels.Render("MongoDB URI") + "\n" + uriView + "\n" + labels.Render("Sites") + "\n" + sitesView + "\n" + keybinds
+		ui = uriView + "\n" + sitesView + "\n" + keybinds
 	}
 
 	// align on every view change
