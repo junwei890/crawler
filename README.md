@@ -35,8 +35,8 @@ A channel is also shared across all Goroutines to share crawl counts and error l
 For each site, a GET request is made for its `robots.txt` file, this file outlines which routes a crawler **can and cannot access as well as the crawl delay** it should abide by.
 
 Based on the response, one of several things could happen:
-- 403: The site doesn't want us crawling so we don't.
-- 404: There's no robots.txt file so we will be crawling the site.
+- **403**: The site doesn't want us crawling so we won't.
+- **404**: There's no `robots.txt` file so we will be crawling the site.
 - Malformed or no Content-Type headers: The site won't be crawled.
 
 If all these pass, the file is passed through a parser where rules are extracted.
@@ -62,10 +62,11 @@ The retrieved HTML is then passed through a parser that extracts the title, cont
 ### Post-crawling
 Once each site exits the for loop, titles and content we extracted are **bulk inserted** into MongoDB, with the database and collection creation **automated**.
 
-Once all sites have been crawled, the collection is then **automatically indexed** for Atlas Search.
+Once all sites have been crawled, the collection is then **automatically indexed** for [Atlas Search](https://www.mongodb.com/docs/atlas/atlas-search/).
 
 The crawler builds on top of the database, collection and index that was created on the first successful run on subsequent program executions. All of this is handled by the crawler.
 
 ## Extensions
 - [x] Viewport to see error logs.
-- [ ] Site map crawling
+- [ ] Site map crawling.
+- [ ] Unified panel.
