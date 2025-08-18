@@ -8,7 +8,7 @@ This is a web crawler I wrote that allows for large scale concurrency while bein
 ## Installation
 Run the following to import the package into your project:
 ```
-go get github.com/junwei890/crawler@latest
+go get github.com/junwei890/crawler@v0.0.0
 ```
 
 This exposes several functions that you can use, but most likely, you would only need to use:
