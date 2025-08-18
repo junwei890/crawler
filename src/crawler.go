@@ -3,6 +3,7 @@ package src
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"regexp"
 	"strings"
@@ -15,12 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func StartCrawl(dbURI string, links []string, stream chan struct{}, errors chan string) error {
-	defer func() {
-		close(stream)
-		close(errors)
-	}()
-
+func StartCrawl(dbURI string, links []string) error {
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(dbURI))
 	if err != nil {
 		return err
@@ -44,8 +40,8 @@ func StartCrawl(dbURI string, links []string, stream chan struct{}, errors chan 
 				wg.Done()
 			}()
 
-			if err := crawler(link, collection, stream, errors); err != nil {
-				errors <- err.Error()
+			if err := crawler(link, collection); err != nil {
+				log.Println(err)
 			}
 		}(link, collection)
 	}
@@ -106,7 +102,7 @@ type Content struct {
 	Content string `bson:"content"`
 }
 
-func crawler(startURL string, collection *mongo.Collection, stream chan struct{}, errors chan string) error {
+func crawler(startURL string, collection *mongo.Collection) error {
 	// get and parse robots.txt file first
 	file, err := utils.GetRobots(startURL)
 	if err != nil {
@@ -155,7 +151,7 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 
 		ok, err := utils.CheckDomain(dom, popped)
 		if err != nil {
-			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
+			log.Println(fmt.Errorf("didn't crawl %s: %v", popped, err).Error())
 			continue
 		}
 		if !ok {
@@ -164,7 +160,7 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 
 		currURL, err := utils.Normalize(popped)
 		if err != nil {
-			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
+			log.Println(fmt.Errorf("didn't crawl %s: %v", popped, err).Error())
 			continue
 		}
 
@@ -184,13 +180,13 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 
 		page, err := utils.GetHTML(popped)
 		if err != nil {
-			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
+			log.Println(fmt.Errorf("didn't crawl %s: %v", popped, err).Error())
 			continue
 		}
 
 		res, err := utils.ParseHTML(dom, page)
 		if err != nil {
-			errors <- fmt.Errorf("didn't crawl %s: %v", popped, err).Error()
+			log.Println(fmt.Errorf("didn't crawl %s: %v", popped, err).Error())
 			continue
 		}
 
@@ -207,8 +203,6 @@ func crawler(startURL string, collection *mongo.Collection, stream chan struct{}
 		if len(cleaned) < 500 {
 			continue
 		}
-
-		stream <- struct{}{}
 
 		content = append(content, Content{
 			URL:     popped,

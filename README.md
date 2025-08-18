@@ -6,30 +6,22 @@ This is a web crawler I wrote that allows for large scale concurrency while bein
 - A [MongoDB](https://www.mongodb.com/docs/atlas/getting-started/) cluster
 
 ## Installation
-Run the following in your terminal:
+Run the following to import the package into your project:
 ```
-go install github.com/junwei890/crawler@latest
-```
-
-Now run:
-```
-crawler
+go get github.com/junwei890/crawler
 ```
 
-This gives you access to the UI in any working directory.
+This exposes several functions that you can use, but most likely, you would only need to use:
+```
+func StartCrawl(dbURI string, links []string) error
+```
 
 ## Usage
-![image](./images/crawler_ui.png)
-
-This is the main UI, in the first input field, enter your MongoDB URI. In the second input field, enter any sites you would like to scrape.
-
-Make sure each site is on a newline and has its protocol.
+To use the function above, give it your MongoDB URI and a slice of links you would like to scrape. Ensure that all links have their protocol intact.
 
 ## Inner workings
 ### Program entry
-Once the MongoDB URI and sites have been entered, a database connection is established and a Goroutine is created to crawl each site, up to a **thousand**.
-
-A channel is also shared across all Goroutines to share crawl counts and error logs in realtime to the user.
+Once the MongoDB URI and sites have been passed, a database connection is established and a Goroutine is created to crawl each site, up to a **thousand**.
 
 ### Robots.txt
 For each site, a GET request is made for its `robots.txt` file, this file outlines which routes a crawler **can and cannot access as well as the crawl delay** it should abide by.
@@ -66,7 +58,63 @@ Once all sites have been crawled, the collection is then **automatically indexed
 
 The crawler builds on top of the database, collection and index that was created on the first successful run on subsequent program executions. All of this is handled by the crawler.
 
-## Extensions
-- [x] Viewport to see error logs.
+## Exposed functions
+```
+func Normalize(rawURL string) (string, error)
+```
+
+Standardises URL structure, turns URLs like "http://www.site.com/" to "www.site.com". See [utils_test](./utils/utils_test.go) for edge cases.
+
+```
+func GetHTML(rawURL string) ([]byte, error)
+```
+
+Makes a GET request for the pages HTML and returns it as a slice of bytes. Strict checks are done before returning.
+
+```
+type Response struct {
+    Title string
+    Content []string
+    Links []string
+}
+
+func ParseHTML(domain *url.URL, page []byte) (Response, error)
+```
+
+Parses HTML and returns extracted content in a `Response` struct. `domain` is appended to the front of routes found in `<a>` that resemble "/cats" or "/cats/blogs".
+
+```
+func GetRobots(rawURL string) ([]byte, error)
+```
+
+Makes a GET request for a website's `robots.txt` file and returns it as a slice of bytes. Strict checks are done before returning.
+
+```
+type Rules struct {
+    Allowed []string
+    Disallowed []string
+    Delay int
+}
+
+func ParseRobots(normURL string, textFile []byte) (Rules, error)
+```
+
+Parses the `robots.txt` file and returns extracted rules in a `Rules` struct. The normalized version of the URL is inserted at the front of routes.
+
+```
+CheckAbility(visited map[string]struct{}, rules Rules, normURL string) bool
+```
+
+Checks if the crawler can and should crawl the given URL.
+
+```
+func CheckDomain(domain *url.URL, rawURL string) (bool, error)
+```
+
+Checks if the crawler is still within the same domain.
+
+## Planned extensions
+I'm not much of a UI guy if you can't tell from the commit history, if you would like to wrap this around a UI, feel free to fork the repo.
+
+These are the extension I have planned.
 - [ ] Site map crawling.
-- [ ] Unified panel.
