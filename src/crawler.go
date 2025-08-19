@@ -216,6 +216,8 @@ func crawler(startURL string, collection *mongo.Collection) error {
 			continue
 		}
 
+		log.Printf("crawled: %s", popped)
+
 		content = append(content, Content{
 			URL:     popped,
 			Title:   res.Title,
