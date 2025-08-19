@@ -6,18 +6,26 @@ This is a web crawler I wrote that allows for large scale concurrency while bein
 - A [MongoDB](https://www.mongodb.com/docs/atlas/getting-started/) cluster
 
 ## Installation
-Run the following to import the package into your project:
+Fork the repo using, then cd and create a `.env` and `crawler.txt` file.
+
+In the `.env` file, create an environment variable called `DB_URI`, this is your MongoDB connection string.
+
+In the `crawler.txt` file, paste in sites you would like to crawl, making sure each site is on a newline and each site has their protocol, like so:
 ```
-go get github.com/junwei890/crawler/src@v0.0.0
+https://www.site.com/
+https://www.another.com/
+https://www.other.com/
 ```
 
-Now you can use:
+Once ready, run:
 ```
-func StartCrawl(dbURI string, links []string) error
+go build && ./crawler
 ```
 
-## Usage
-To use the function above, give it your MongoDB URI and a slice of links you would like to scrape. Ensure that all links have their protocol intact.
+## Notes
+Some sites enforce long crawl delays and disallowed routes, this crawler **abides** by them. If you would like to bypass these, fork the repo and make the necessary changes.
+
+Other quirks are mentioned down in the **Inner workings** section below
 
 ## Inner workings
 ### Program entry
@@ -59,7 +67,6 @@ Once all sites have been crawled, the collection is then **automatically indexed
 The crawler builds on top of the database, collection and index that was created on the first successful run on subsequent program executions. All of this is handled by the crawler.
 
 ## Planned extensions
-I'm not much of a UI guy if you can't tell from the commit history, if you would like to wrap this around a UI, feel free to fork the repo.
-
 These are the extension I have planned.
 - [ ] Site map crawling.
+- [ ] UI (not a priority)
