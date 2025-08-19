@@ -6,7 +6,7 @@ This is a web crawler I wrote that allows for large scale concurrency while bein
 - A [MongoDB](https://www.mongodb.com/docs/atlas/getting-started/) cluster
 
 ## Installation
-Fork the repo using, then cd and create a `.env` and `crawler.txt` file.
+Fork the repo, then cd and create a `.env` and `crawler.txt` file.
 
 In the `.env` file, create an environment variable called `DB_URI`, this is your MongoDB connection string.
 
