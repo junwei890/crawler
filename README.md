@@ -25,7 +25,7 @@ go build && ./crawler
 ## Notes
 Some sites enforce long crawl delays and disallowed routes, this crawler **abides** by them. If you would like to bypass these, fork the repo and make the necessary changes.
 
-Other quirks are mentioned down in the **Inner workings** section below
+Other quirks are mentioned down in the **Inner workings** section below.
 
 ## Inner workings
 ### Program entry
@@ -69,4 +69,4 @@ The crawler builds on top of the database, collection and index that was created
 ## Planned extensions
 These are the extension I have planned.
 - [ ] Site map crawling.
-- [ ] UI (not a priority)
+- [ ] UI (not a priority).
